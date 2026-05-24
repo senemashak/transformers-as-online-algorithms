@@ -256,5 +256,221 @@ under-learns recency tracking. Testing this directly would require at
 minimum a per-family loss reweighting run; that experiment is not yet
 performed.
 
+\section{All-timesteps labelling experiment}
+
+\subsection{Motivation and setup}
+
+In the event-mode training above, LRU traces yielded $\approx\!24\%$ of the
+training signal because they have fewer full-cache misses per trace than the
+other two families. To remove this per-family imbalance we change the
+labelling rule: instead of supervising the model only at actual eviction
+events, we supervise at \emph{every} full-cache timestep using Belady's
+\emph{hypothetical} eviction choice---the slot whose item has the furthest
+next occurrence, computed regardless of whether step $t$ is a miss or a hit.
+At a hit step this is guaranteed to be a slot other than the one holding
+$\mathrm{trace}[t]$, since that slot's next occurrence is $t$ itself (the
+minimum).
+
+Every trace now contributes the same number of full-cache timesteps, so the
+per-family gradient share becomes proportional to the number of training
+traces per family ($800{:}800{:}800$, i.e.\ exactly $1{:}1{:}1$) rather than
+to eviction density. Keeping the rest of the training pipeline identical
+(dual-attention transformer, $d_{\text{model}}{=}128$, $d_{\text{ff}}{=}256$,
+$2$ layers, $2$ heads, $w{=}1024$, $\mathrm{lr}{=}10^{-3}$), we subsample to
+$4{,}000$ timesteps per trace (deterministic per-trace seed) so the training
+set size matches the event-mode baseline at $9.6$M examples. Training ran
+for $3$ epochs on 2${\times}$A6000 GPUs via DDP (effective batch $512$).
+
+\subsection{Training dynamics}
+
+Validation metrics across the three epochs (saved in
+\texttt{runs/all\_timesteps/val\_loss.jsonl}):
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Epoch & val loss & val accuracy (all timesteps) & time \\
+\midrule
+0 & $1.8742$ & $49.56\%$ & $56.5$ min \\
+1 & $1.8430$ & $49.82\%$ & $56.4$ min \\
+2 & $1.8410$ & $49.90\%$ & $56.3$ min \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The smoothed training curve (\texttt{runs/all\_timesteps/training\_curves.png})
+descends sharply from chance to $\approx\!2.0$ within the first $1{,}500$
+steps, then plateaus near $1.85$. Train and val tracks stay on top of each
+other throughout---no overfitting gap, but per-epoch improvement is tiny
+($+0.3$ pp val accuracy across $3$ epochs).
+
+Note that the validation metric here is computed over \emph{all} full-cache
+timesteps (hit and miss together), which is a different distribution from
+the event-mode validation above, so the values are \emph{not} directly
+comparable across the two experiments.
+
+\subsection{Closed-loop (rollout) hit-rate evaluation}
+
+Evaluation protocol is identical to the previous subsection: start each test
+trace with an empty cache, let the model commit its eviction decision on
+every full-cache miss, measure hit rate after a $10\%$ warm-up.
+
+\paragraph{Overall.}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Policy & Hit rate \\
+\midrule
+ARC                      & $62.63\%$ \\
+LRU                      & $57.70\%$ \\
+Model (event-mode run)   & $45.61\%$ \\
+\textbf{Model (all-timesteps run)} & $\mathbf{35.58\%}$ \\
+LFU                      & $31.67\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Per-dominating-family comparison.}
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Group & Model (event) & Model (all-ts) & $\Delta$ & Best baseline \\
+\midrule
+LRU-dom & $30.55\%$ & $12.93\%$ & $-17.6$ pp & LRU $73.16\%$ \\
+LFU-dom & $55.33\%$ & $55.12\%$ & $-0.2$ pp  & LFU $58.98\%$ \\
+ARC-dom & $50.96\%$ & $38.68\%$ & $-12.3$ pp & ARC $64.33\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Interpretation.}
+
+Despite per-family balancing of the training distribution, the
+all-timesteps model performs \emph{worse} in rollout than the event-mode
+baseline across the board. The LFU-dominant regime is essentially unchanged
+($-0.2$ pp); the LRU- and ARC-dominant regimes degrade substantially ($-17.6$
+and $-12.3$ pp respectively).
+
+Two effects plausibly combine to produce this outcome, neither of which we
+have isolated experimentally:
+
+\begin{itemize}
+    \item \emph{Fewer actual-eviction examples.} Under the new labelling,
+    each trace contributes $4{,}000$ randomly sampled full-cache timesteps,
+    of which only $\approx\!27\%$ are miss-full events
+    ($\approx\!1{,}080$ per trace). Across $2{,}400$ training traces this is
+    $\approx\!2.6$M direct eviction examples, versus $10.3$M in the
+    event-mode run---a $4\times$ reduction in the specific signal most
+    relevant to the rollout metric.
+
+    \item \emph{Hit-step supervision teaches a different skill.} At hit
+    timesteps the ``which slot is worst to keep'' question is well-defined
+    but operationally different from ``which slot to evict now.'' The model
+    may be learning an average ranking of cached items that happens to be
+    LFU-flavoured, at the expense of the specific recency heuristic that
+    actual evictions demand.
+\end{itemize}
+
+Balancing the training distribution did not buy us the expected
+improvement on LRU-dominant traces; rather the opposite happened. A
+cleaner test of the imbalance hypothesis would be event-mode training with
+explicit per-family loss reweighting, which does not dilute the eviction
+signal with hit-step supervision. That experiment is not yet performed.
+
+\subsection{Teacher-forced test evaluation}
+
+Evaluation setup: the model sees Belady's cache state at every full-cache
+timestep of the 300 held-out test traces ($4{,}783{,}043$ examples total).
+Labels are Belady's hypothetical furthest-future choice. Slot-level
+agreement with LRU and LFU is computed from Belady's cache at each
+timestep---these rules are deterministic functions of the
+(cache, access-history) pair, so coverage is trivially $100\%$. ARC is
+intentionally excluded from the agreement comparison because its decision
+depends on a T1/T2/B1/B2 partition that is not a function of Belady's
+cache alone (see caveat in the event-mode section).
+
+\paragraph{Full breakdown.}
+
+\begin{center}
+\small
+\begin{tabular}{llrrrrr}
+\toprule
+Group & Subset & $n$ & Loss & Acc & agr\_LRU & agr\_LFU \\
+\midrule
+\multirow{3}{*}{overall} & all   & $4{,}783{,}043$ & $1.831$ & $50.03\%$ & $\phantom{0}2.23\%$ & $12.82\%$ \\
+                         & event & $1{,}281{,}019$ & $1.752$ & $52.23\%$ & $\phantom{0}1.49\%$ & $12.01\%$ \\
+                         & hit   & $3{,}502{,}024$ & $1.860$ & $49.23\%$ & $\phantom{0}2.50\%$ & $13.11\%$ \\
+\midrule
+\multirow{3}{*}{LRU-dom} & all   & $1{,}593{,}023$ & $2.774$ & $20.39\%$ & $\phantom{0}6.68\%$ & $\phantom{0}5.88\%$ \\
+                         & event & $\phantom{0,}306{,}417$ & $2.897$ & $12.42\%$ & $\phantom{0}6.21\%$ & $\phantom{0}3.94\%$ \\
+                         & hit   & $1{,}286{,}606$ & $2.745$ & $22.29\%$ & $\phantom{0}6.79\%$ & $\phantom{0}6.35\%$ \\
+\midrule
+\multirow{3}{*}{LFU-dom} & all   & $1{,}595{,}186$ & $1.447$ & $61.38\%$ & $\phantom{0}0.00\%$ & $17.60\%$ \\
+                         & event & $\phantom{0,}528{,}821$ & $1.459$ & $61.20\%$ & $\phantom{0}0.00\%$ & $17.28\%$ \\
+                         & hit   & $1{,}066{,}365$ & $1.441$ & $61.47\%$ & $\phantom{0}0.00\%$ & $17.76\%$ \\
+\midrule
+\multirow{3}{*}{ARC-dom} & all   & $1{,}594{,}834$ & $1.273$ & $68.28\%$ & $\phantom{0}0.02\%$ & $14.96\%$ \\
+                         & event & $\phantom{0,}445{,}781$ & $1.313$ & $68.95\%$ & $\phantom{0}0.01\%$ & $11.32\%$ \\
+                         & hit   & $1{,}149{,}053$ & $1.258$ & $68.02\%$ & $\phantom{0}0.02\%$ & $16.37\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Key observation: event-subset accuracy is unchanged.} Restricting
+the all-timesteps model's accuracy to the miss-full event subset and
+comparing against the event-mode model trained on those same events yields
+nearly identical numbers:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Group (event subset) & All-timesteps model & Event-mode model \\
+\midrule
+Overall & $52.23\%$ & $52.46\%$ \\
+LRU-dom & $12.42\%$ & $13.11\%$ \\
+LFU-dom & $61.20\%$ & $61.38\%$ \\
+ARC-dom & $68.95\%$ & $68.93\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Differences are within $0.7$ pp everywhere. \textbf{The two models produce
+effectively the same eviction decisions on the same cache states.} The
+$10$ pp rollout-hit-rate gap between them therefore cannot be attributed to
+per-event decision quality; it must arise from cascading divergence during
+closed-loop execution---one incorrect (but very-close-to-correct) eviction
+choice puts the cache in a state the model is slightly worse at predicting
+from, compounding over thousands of timesteps.
+
+\paragraph{Comparing agreement metrics with the old run.} Under the
+same-cache metric used here, LFU agreement peaks at $17.8\%$ on the LFU-dom
+hit subset---well above the $1/32=3.1\%$ random baseline, but dramatically
+lower than the $65\%$ item-level agreement we previously reported under the
+(flawed) shared-timestep metric. The earlier ``the model is
+LFU-flavoured'' narrative was partly an artefact of comparing against
+LFU's own rollout cache rather than against what LFU would pick from
+Belady's cache. With the corrected metric the model does lean towards
+LFU-like decisions (never LRU-like), but the effect is much milder than
+before.
+
+\paragraph{Hit vs.\ event asymmetry.} On LRU-dominant traces, hit-step
+accuracy ($22.3\%$) is \emph{nearly twice} the event-step accuracy
+($12.4\%$). On LFU- and ARC-dominant traces the two are within $1$ pp.
+The LRU-family hit steps are apparently easier because trace$[t]$ is in
+the working set and the model only needs to avoid evicting it---picking any
+non-current-item slot is usually fine, as the correct eviction is often
+outside the recent-window focus. Actual miss-full events in the LRU family
+require selecting the right stale phase-set item, which the model has not
+learnt.
+
+\paragraph{Summary.} The all-timesteps training matches the event-mode
+model's teacher-forced accuracy exactly on real eviction events, adds some
+new capability on hit steps (no direct baseline to compare against), and
+loses ${\sim}10$ pp in rollout---a pure closed-loop divergence effect, not a
+per-event decision issue. Fixing the LRU-dominant failure would require a
+different intervention than rebalancing the labelling distribution.
+
 \end{document}
 

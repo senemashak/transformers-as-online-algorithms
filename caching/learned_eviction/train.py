@@ -20,6 +20,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
@@ -173,6 +174,26 @@ def train(args):
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
     loss_fn = nn.CrossEntropyLoss()
 
+    # Build LR scheduler.
+    total_steps = len(train_loader) * args.epochs  # per-rank; SequentialLR will step this many times
+    scheduler = None
+    if args.lr_schedule == "cosine":
+        warmup_steps = max(args.warmup_steps, 1)
+        warmup = LinearLR(
+            opt, start_factor=1e-6, end_factor=1.0, total_iters=warmup_steps,
+        )
+        cos_steps = max(total_steps - warmup_steps, 1)
+        cosine = CosineAnnealingLR(opt, T_max=cos_steps, eta_min=args.lr_min)
+        scheduler = SequentialLR(opt, schedulers=[warmup, cosine], milestones=[warmup_steps])
+        if is_main:
+            print(f"lr schedule: cosine  warmup={warmup_steps} steps  "
+                  f"peak={args.lr}  min={args.lr_min}  total={total_steps}")
+    elif args.lr_schedule == "constant":
+        if is_main:
+            print(f"lr schedule: constant {args.lr}")
+    else:
+        raise ValueError(f"unknown lr_schedule: {args.lr_schedule}")
+
     if is_main:
         train_loss_f = open(log_path / "train_loss.jsonl", "a")
         val_loss_f = open(log_path / "val_loss.jsonl", "a")
@@ -195,13 +216,18 @@ def train(args):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
+            if scheduler is not None:
+                scheduler.step()
             step += 1
             if is_main and step % args.log_every == 0:
                 acc = (logits.argmax(-1) == label).float().mean().item()
-                print(f"epoch {epoch} step {step}  loss {loss.item():.4f}  acc {acc:.3f}")
+                current_lr = opt.param_groups[0]["lr"]
+                print(f"epoch {epoch} step {step}  lr {current_lr:.2e}  "
+                      f"loss {loss.item():.4f}  acc {acc:.3f}")
                 train_loss_f.write(json.dumps({
                     "step": step, "epoch": epoch,
                     "loss": loss.item(), "acc": acc,
+                    "lr": current_lr,
                 }) + "\n")
                 train_loss_f.flush()
 
@@ -246,7 +272,14 @@ def parse_args():
     p.add_argument("--dropout", type=float, default=0.1)
     p.add_argument("--batch-size", type=int, default=256)
     p.add_argument("--num-workers", type=int, default=2)
-    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--lr", type=float, default=3e-4, help="peak (and constant if no schedule) LR")
+    p.add_argument("--lr-schedule", type=str, default="constant",
+                   choices=["constant", "cosine"],
+                   help="cosine = linear warmup to --lr then cosine decay to --lr-min")
+    p.add_argument("--lr-min", type=float, default=1e-5,
+                   help="floor LR for cosine schedule; ignored for constant")
+    p.add_argument("--warmup-steps", type=int, default=500,
+                   help="linear warmup steps for cosine schedule")
     p.add_argument("--wd", type=float, default=0.01)
     p.add_argument("--epochs", type=int, default=10)
     p.add_argument("--log-every", type=int, default=50)
