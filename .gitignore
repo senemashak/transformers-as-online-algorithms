@@ -2,15 +2,21 @@
 plots/
 code/results/
 
-# LaTeX
+# LaTeX build artifacts (sources are un-ignored explicitly below)
 *.text
 *.tex
 *.aux
 *.bbl
 *.blg
 *.out
+*.toc
 *.pdf
 formatting/
+
+# Allow project writeups
+!bayesian-stopping/report/research-notes.tex
+!bayesian-stopping/report/research-notes.pdf
+!robust-transformers-with-chain-of-thought/experiment.tex
 
 # Python
 __pycache__/
@@ -23,7 +29,8 @@ __pycache__/
 # Derived Belady simulation cache (regeneratable from traces)
 caching/data/belady_cache/
 
-# bayesian-stopping/v3 large regeneratable artifacts
-bayesian-stopping/v3/checkpoints/
-bayesian-stopping/v3/code/oracle/tables/
-bayesian-stopping/v3/code/data/cache/
+# bayesian-stopping large regeneratable artifacts
+bayesian-stopping/checkpoints/
+bayesian-stopping/results/
+bayesian-stopping/code/oracle/tables/
+bayesian-stopping/code/data/cache/
