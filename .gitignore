@@ -34,3 +34,7 @@ bayesian-stopping/checkpoints/
 bayesian-stopping/results/
 bayesian-stopping/code/oracle/tables/
 bayesian-stopping/code/data/cache/
+
+# Sibling subprojects archived elsewhere — untracked locally
+caching/
+robust-transformers-with-chain-of-thought/

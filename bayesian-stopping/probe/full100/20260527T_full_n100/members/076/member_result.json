@@ -1,0 +1,138 @@
+{
+  "ensemble_idx": 76,
+  "seed": 2000076,
+  "smoke": false,
+  "step_count_override": null,
+  "train": {
+    "true": {
+      "label_perm": "true",
+      "seed": 2000076,
+      "perm_seed": 3000076,
+      "step_count": 150000,
+      "best_step": 147500,
+      "best_val_loss": 0.000816931133158505,
+      "final_val_loss": 0.0008172147790901363,
+      "wall_s_total": 8076.958552771946,
+      "env": {
+        "torch_version": "2.3.1+cu121",
+        "numpy_version": "1.26.4",
+        "cuda_version": "12.1",
+        "gpu_name": "NVIDIA RTX A6000",
+        "hostname": "soal-10.stanford.edu",
+        "python_version": "3.10.12",
+        "cuda_visible_devices": "1",
+        "pid": 1254455
+      }
+    },
+    "perm_glob": {
+      "label_perm": "perm_glob",
+      "seed": 2000076,
+      "perm_seed": 3000076,
+      "step_count": 150000,
+      "best_step": 5000,
+      "best_val_loss": 0.09904701262712479,
+      "final_val_loss": 0.10165063291788101,
+      "wall_s_total": 8182.244133412023,
+      "env": {
+        "torch_version": "2.3.1+cu121",
+        "numpy_version": "1.26.4",
+        "cuda_version": "12.1",
+        "gpu_name": "NVIDIA RTX A6000",
+        "hostname": "soal-10.stanford.edu",
+        "python_version": "3.10.12",
+        "cuda_visible_devices": "1",
+        "pid": 1254455
+      }
+    }
+  },
+  "probe_data": {
+    "ensemble_idx": 76,
+    "n": 256,
+    "splits": {
+      "train": {
+        "M": 1024,
+        "seed": 5000760,
+        "wall_s": 0.09711039095418528
+      },
+      "val": {
+        "M": 512,
+        "seed": 5000761,
+        "wall_s": 0.06524806801462546
+      },
+      "test": {
+        "M": 10000,
+        "seed": 5000762,
+        "wall_s": 0.4722599439555779
+      }
+    },
+    "targets": [
+      "sigma_mle_sqrt",
+      "C_star"
+    ],
+    "oracle_table": "D_logu_K256_J64_Js64.npz"
+  },
+  "hidden_cache": {
+    "true": {
+      "ckpt_path": "/home/senemi/transformers-as-online-algorithms/bayesian-stopping/runs/prelim_mech_interp_v2/20260527T_full_n100/members/076/true/best.pt",
+      "rep_name": "true",
+      "n_layers_total": 9,
+      "n": 256,
+      "d_emb": 128,
+      "splits": {
+        "train": {
+          "M": 1024,
+          "wall_s": 4.220920688996557
+        },
+        "val": {
+          "M": 512,
+          "wall_s": 2.225727020006161
+        },
+        "test": {
+          "M": 10000,
+          "wall_s": 22.857531293993816
+        }
+      }
+    },
+    "perm_glob": {
+      "ckpt_path": "/home/senemi/transformers-as-online-algorithms/bayesian-stopping/runs/prelim_mech_interp_v2/20260527T_full_n100/members/076/perm_glob/best.pt",
+      "rep_name": "perm_glob",
+      "n_layers_total": 9,
+      "n": 256,
+      "d_emb": 128,
+      "splits": {
+        "train": {
+          "M": 1024,
+          "wall_s": 2.179537891992368
+        },
+        "val": {
+          "M": 512,
+          "wall_s": 1.089641386992298
+        },
+        "test": {
+          "M": 10000,
+          "wall_s": 21.55308523302665
+        }
+      }
+    }
+  },
+  "probes": {
+    "true": {
+      "n_rows": 90,
+      "wall_s": 171.9086363639799
+    },
+    "perm_glob": {
+      "n_rows": 90,
+      "wall_s": 170.370224222017
+    }
+  },
+  "probes_attn": {
+    "true": {
+      "n_rows": 90,
+      "wall_s": 87.71338705497328
+    },
+    "perm_glob": {
+      "n_rows": 90,
+      "wall_s": 89.84900452604052
+    }
+  }
+}

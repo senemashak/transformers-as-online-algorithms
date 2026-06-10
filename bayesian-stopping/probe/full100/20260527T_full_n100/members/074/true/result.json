@@ -1,0 +1,20 @@
+{
+  "label_perm": "true",
+  "seed": 2000074,
+  "perm_seed": 3000074,
+  "step_count": 150000,
+  "best_step": 147500,
+  "best_val_loss": 0.0007162016117945313,
+  "final_val_loss": 0.0007165035349316895,
+  "wall_s_total": 7863.7301657790085,
+  "env": {
+    "torch_version": "2.3.1+cu121",
+    "numpy_version": "1.26.4",
+    "cuda_version": "12.1",
+    "gpu_name": "NVIDIA RTX A6000",
+    "hostname": "soal-10.stanford.edu",
+    "python_version": "3.10.12",
+    "cuda_visible_devices": "4",
+    "pid": 929883
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "ensemble_idx": 2,
+  "seed": 2000002,
+  "rep": "init",
+  "smoke": false,
+  "targets": [
+    "sigma_mle_sqrt",
+    "C_star"
+  ],
+  "M_train_budgets": [
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "cache_wall_s": 0.0012131460243836045,
+  "cache_meta": {
+    "rep_name": "init",
+    "seed": 2000002,
+    "source": "seed-deterministic init (no training)",
+    "n_layers_total": 9,
+    "n": 256,
+    "d_emb": 128,
+    "splits": {
+      "train": {
+        "M": 1024,
+        "wall_s": 7.298111427924596
+      },
+      "val": {
+        "M": 512,
+        "wall_s": 3.700953021994792
+      },
+      "test": {
+        "M": 10000,
+        "wall_s": 69.84159280592576
+      }
+    }
+  },
+  "simple_probes": {
+    "n_rows": 90,
+    "wall_s": 178.8273910639109
+  },
+  "attn_probes": {
+    "n_rows": 90,
+    "wall_s": 85.36013935308438
+  }
+}

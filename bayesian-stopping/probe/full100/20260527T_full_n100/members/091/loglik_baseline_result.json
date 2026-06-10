@@ -1,0 +1,39 @@
+{
+  "ensemble_idx": 91,
+  "seed": 2000091,
+  "target": "loglik_true_params_raw_mse",
+  "probe_types": {
+    "simple": "timestep_shared_simple_linear_loglik_raw_mse",
+    "attn": "timestep_shared_attention_pooled_loglik_raw_mse"
+  },
+  "smoke": false,
+  "reps": [
+    "true",
+    "perm_glob",
+    "init"
+  ],
+  "M_train_budgets": [
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "runs": {
+    "true": {
+      "n_simple": 45,
+      "n_attn": 45,
+      "wall_s": 222.29354432108812
+    },
+    "perm_glob": {
+      "n_simple": 45,
+      "n_attn": 45,
+      "wall_s": 213.9250164721161
+    },
+    "init": {
+      "n_simple": 45,
+      "n_attn": 45,
+      "wall_s": 227.51751120295376
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "distribution": "D_logu",
+  "supervision": "act",
+  "n": 256,
+  "d_emb": 128,
+  "n_layers": 8,
+  "n_heads": 4,
+  "batch_size": 64,
+  "step_count": 150000,
+  "lr": 0.0001,
+  "warmup_frac": 0.2,
+  "val_every": 2500,
+  "train_log_every": 100,
+  "seed": 2000076,
+  "label_perm": "perm_glob",
+  "perm_seed": 3000076
+}

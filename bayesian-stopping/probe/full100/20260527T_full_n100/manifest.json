@@ -1,0 +1,37 @@
+{
+  "experiment": "preliminary_mechanistic_interpretability_v2 (UNIFIED N=100)",
+  "predecessor_simple_n20": "/home/senemi/transformers-as-online-algorithms/bayesian-stopping/runs/prelim_mech_interp_v2/20260525T194204Z_full_n20",
+  "predecessor_attn_n20": "/home/senemi/transformers-as-online-algorithms/bayesian-stopping/runs/prelim_mech_interp_v2/20260526T_attn_n20",
+  "predecessor_git_commit": "c11c73eac7884290022fd17244992adcefa826c2",
+  "reuse_policy": "members 0..19 symlinked from predecessor simple_n20 dirs; probe_results.json (simple and attn) copied into probe_runs/ and probe_runs_attn/ respectively. Members 20..99 trained fresh.",
+  "probe_families": [
+    "timestep_shared_simple_linear",
+    "timestep_shared_attention_pooled"
+  ],
+  "output_subdirs": {
+    "simple": "probe_runs",
+    "attn": "probe_runs_attn"
+  },
+  "ensemble_size": 100,
+  "base_seed": "2_000_000 + i for i in 0..99",
+  "targets": [
+    "sigma_mle_sqrt",
+    "C_star"
+  ],
+  "M_train_budgets": [
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "M_val": 512,
+  "M_test": 10000,
+  "reps": [
+    "true",
+    "perm_glob"
+  ],
+  "parallelism": "5-wave bash driver on GPUs 0..4",
+  "git_commit": "c11c73eac7884290022fd17244992adcefa826c2",
+  "created_utc": "2026-05-27T01:58:11Z"
+}
